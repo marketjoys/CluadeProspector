@@ -1,0 +1,1762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProspectRadar — Live Intelligence Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@10..48,400;10..48,600;10..48,700;10..48,800&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════
+   DESIGN SYSTEM — Deep Signal / Night Ops aesthetic
+   Near-black + acid violet accent + emerald confirm
+═══════════════════════════════════════════════════════ */
+:root{
+  --bg:#07070f;--sf:#0d0d1c;--card:#121228;--card2:#161632;
+  --b1:rgba(129,140,248,.12);--b2:rgba(129,140,248,.28);--b3:rgba(129,140,248,.5);
+  --vi:#818cf8;--vi2:#6366f1;--em:#34d399;--am:#fbbf24;--re:#fb7185;
+  --t1:#f1f5f9;--t2:#94a3b8;--t3:#475569;
+  --ff:'Bricolage Grotesque',sans-serif;
+  --fb:'Instrument Sans',sans-serif;
+  --fm:'DM Mono',monospace;
+  --r:12px;--rsm:7px;--rlg:18px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--fb);background:var(--bg);color:var(--t1);font-size:14px}
+
+/* scrollbar */
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-thumb{background:rgba(129,140,248,.2);border-radius:2px}
+
+/* grid bg */
+body::before{content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(129,140,248,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(129,140,248,.025) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none;z-index:0}
+
+/* ── LAYOUT ─────────────────────────────────────────── */
+.app{display:flex;height:100vh;position:relative;z-index:1}
+
+/* ── SIDEBAR ─────────────────────────────────────────── */
+.sb{
+  width:300px;min-width:260px;
+  background:var(--sf);border-right:1px solid var(--b1);
+  display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;
+  z-index:10;
+}
+.sb-inner{padding:18px;display:flex;flex-direction:column;gap:14px;flex:1}
+
+/* logo */
+.logo{display:flex;align-items:center;gap:9px}
+.logo-box{
+  width:30px;height:30px;border-radius:8px;flex-shrink:0;
+  background:var(--card2);border:1px solid var(--b2);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--ff);font-size:15px;font-weight:800;color:var(--vi);
+  position:relative;overflow:hidden;
+}
+.logo-box::after{
+  content:'';position:absolute;inset:0;
+  background:conic-gradient(from 0deg,transparent 55%,rgba(129,140,248,.5) 75%,transparent 100%);
+  animation:spin 3s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.logo-text{font-family:var(--ff);font-weight:800;font-size:16px;letter-spacing:-.3px}
+.logo-text em{color:var(--vi);font-style:normal}
+.logo-badge{
+  margin-left:auto;font-size:9px;padding:2px 6px;border-radius:4px;
+  background:rgba(129,140,248,.12);color:var(--vi);border:1px solid var(--b2);
+  font-family:var(--fm);font-weight:500;letter-spacing:.5px;
+}
+
+/* section label */
+.lbl{font-size:10px;font-weight:600;text-transform:uppercase;
+  letter-spacing:1.1px;color:var(--t3);margin-bottom:5px}
+
+/* key indicator */
+.key-status{
+  display:flex;align-items:center;gap:6px;padding:8px 10px;
+  background:var(--card);border:1px solid var(--b1);border-radius:var(--rsm);
+  font-size:11px;color:var(--t2);cursor:pointer;transition:border .15s;
+}
+.key-status:hover{border-color:var(--b2)}
+.key-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.key-dot.ok{background:var(--em);box-shadow:0 0 6px rgba(52,211,153,.4)}
+.key-dot.err{background:var(--re)}
+.key-dot.none{background:var(--t3)}
+.key-status-text{flex:1}
+.key-config-btn{font-size:10px;color:var(--vi);text-decoration:underline}
+
+/* inputs */
+.inp,.sel,.ta{
+  width:100%;padding:9px 11px;
+  background:var(--card);border:1px solid var(--b1);
+  border-radius:var(--rsm);color:var(--t1);
+  font-size:13px;font-family:var(--fb);
+  outline:none;transition:border .15s,box-shadow .15s;
+}
+.inp:focus,.sel:focus,.ta:focus{border-color:var(--b2);box-shadow:0 0 0 3px rgba(129,140,248,.07)}
+.inp::placeholder,.ta::placeholder{color:var(--t3)}
+.sel{cursor:pointer}.sel option{background:var(--card)}
+.ta{min-height:68px;resize:vertical;line-height:1.5}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* mode toggle */
+.mode-row{display:flex;border:1px solid var(--b1);border-radius:var(--rsm);overflow:hidden}
+.mode-btn{
+  flex:1;padding:7px 4px;background:transparent;border:none;
+  color:var(--t3);font-size:11px;font-weight:500;cursor:pointer;
+  font-family:var(--fb);transition:all .15s;letter-spacing:.3px;
+}
+.mode-btn.on{background:rgba(129,140,248,.15);color:var(--vi)}
+
+/* score slider */
+.slider-wrap{display:flex;align-items:center;gap:9px}
+.slider-wrap input{flex:1}
+.sl-val{font-family:var(--ff);font-size:14px;font-weight:700;color:var(--vi);min-width:24px}
+
+/* buttons */
+.btn{
+  width:100%;padding:10px 16px;border-radius:var(--rsm);
+  font-size:13px;font-weight:600;cursor:pointer;border:none;
+  font-family:var(--fb);transition:all .15s;letter-spacing:.2px;
+  position:relative;overflow:hidden;
+}
+.btn-p{background:var(--vi);color:#fff}
+.btn-p::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);
+  transform:translateX(-100%);transition:transform .4s;
+}
+.btn-p:hover::after{transform:translateX(100%)}
+.btn-p:hover{background:var(--vi2);transform:translateY(-1px)}
+.btn-p:active{transform:translateY(0)}
+.btn-p:disabled{background:#1a1a2e;color:var(--t3);cursor:not-allowed;transform:none}
+.btn-p:disabled::after{display:none}
+.btn-o{background:transparent;color:var(--t2);border:1px solid var(--b1)}
+.btn-o:hover{border-color:var(--b2);color:var(--t1)}
+.btn-sm{padding:7px 12px;font-size:12px}
+
+/* stats */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.stat-c{
+  background:var(--card2);border:1px solid var(--b1);
+  border-radius:var(--rsm);padding:9px 11px;
+}
+.sv{font-family:var(--ff);font-size:21px;font-weight:800;color:var(--vi)}
+.sk{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:1px}
+
+/* cap bar */
+.cap-bg{height:3px;background:var(--card2);border-radius:2px;overflow:hidden;margin-top:5px}
+.cap-f{height:100%;background:linear-gradient(90deg,var(--vi2),var(--vi));border-radius:2px;transition:width .5s}
+.cap-lb{display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:3px}
+
+/* exa engine badge */
+.engine-badge{
+  display:flex;align-items:center;gap:6px;padding:7px 10px;
+  background:var(--card2);border:1px solid var(--b1);border-radius:var(--rsm);
+  font-size:11px;color:var(--t2);
+}
+.engine-dot{width:6px;height:6px;border-radius:50%;background:var(--em);
+  box-shadow:0 0 6px rgba(52,211,153,.5);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* icp card */
+.icp-panel{
+  background:var(--card2);border:1px solid var(--b1);
+  border-radius:var(--rsm);padding:11px;
+  font-size:12px;color:var(--t2);line-height:1.6;
+  display:none;
+}
+.icp-panel.show{display:block}
+.icp-panel strong{color:var(--vi);font-weight:600}
+.icp-tag{
+  display:inline-flex;align-items:center;gap:3px;
+  font-size:10px;padding:2px 7px;border-radius:4px;
+  background:rgba(129,140,248,.1);color:var(--vi);
+  border:1px solid var(--b1);margin:2px 2px 0 0;
+}
+
+/* ── MAIN ─────────────────────────────────────────────── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* topbar */
+.topbar{
+  padding:13px 22px;border-bottom:1px solid var(--b1);
+  background:rgba(13,13,28,.95);
+  display:flex;align-items:center;gap:11px;
+  backdrop-filter:blur(8px);flex-shrink:0;
+}
+.tb-title{font-family:var(--ff);font-size:14px;font-weight:700;flex:1}
+.tb-meta{font-size:11px;color:var(--t3);font-family:var(--fm)}
+.icon-btn{
+  padding:6px 10px;background:var(--card);border:1px solid var(--b1);
+  border-radius:var(--rsm);color:var(--t2);font-size:11px;
+  cursor:pointer;transition:all .15s;font-family:var(--fb);
+}
+.icon-btn:hover{color:var(--t1);border-color:var(--b2)}
+
+/* pipeline stepper */
+.pipeline{
+  padding:9px 22px;border-bottom:1px solid var(--b1);
+  background:rgba(7,7,15,.8);
+  display:flex;align-items:center;gap:0;overflow-x:auto;flex-shrink:0;
+}
+.ps{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--t3);white-space:nowrap;transition:color .2s}
+.ps.act{color:var(--vi)}
+.ps.done{color:var(--em)}
+.ps.err{color:var(--re)}
+.pd{
+  width:18px;height:18px;border-radius:50%;flex-shrink:0;
+  background:var(--card);border:1px solid var(--b1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:8px;font-family:var(--ff);font-weight:800;transition:all .2s;
+}
+.ps.act .pd{background:rgba(129,140,248,.2);border-color:var(--vi);color:var(--vi);box-shadow:0 0 7px rgba(129,140,248,.3)}
+.ps.done .pd{background:rgba(52,211,153,.15);border-color:var(--em);color:var(--em)}
+.ps.err .pd{background:rgba(251,113,133,.15);border-color:var(--re);color:var(--re)}
+.pa{padding:0 7px;color:var(--b2);font-size:10px}
+
+/* live log */
+.live-log{
+  padding:0 22px;background:var(--card);
+  border-bottom:1px solid var(--b1);
+  font-family:var(--fm);font-size:11px;
+  max-height:0;overflow:hidden;transition:max-height .3s;flex-shrink:0;
+}
+.live-log.open{max-height:88px;overflow-y:auto;padding:8px 22px}
+.ll{margin-bottom:2px}
+.ll.info{color:var(--vi)}.ll.ok{color:var(--em)}.ll.warn{color:var(--am)}.ll.err{color:var(--re)}.ll.dim{color:var(--t3)}
+
+/* content */
+.content{flex:1;overflow-y:auto;padding:18px 22px}
+
+/* empty */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:380px;gap:14px;text-align:center}
+.e-ring{
+  width:88px;height:88px;border-radius:50%;border:1px solid var(--b1);
+  display:flex;align-items:center;justify-content:center;position:relative;
+}
+.e-ring::before,.e-ring::after{content:'';position:absolute;border-radius:50%;border:1px solid var(--b1)}
+.e-ring::before{width:62px;height:62px}.e-ring::after{width:36px;height:36px}
+.e-dot{width:10px;height:10px;background:var(--vi);border-radius:50%;position:relative;z-index:1}
+.e-h{font-family:var(--ff);font-size:19px;font-weight:700}
+.e-p{font-size:13px;color:var(--t2);max-width:380px;line-height:1.7}
+
+/* results grid */
+.r-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:13px}
+
+/* prospect card */
+.pc{
+  background:var(--card);border:1px solid var(--b1);border-radius:var(--r);
+  overflow:hidden;transition:border-color .2s,transform .15s;position:relative;
+}
+.pc:hover{border-color:var(--b2);transform:translateY(-2px)}
+.pc-accent{height:2px}
+.pc-body{padding:14px 15px}
+.pc-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:9px}
+.pc-av{
+  width:38px;height:38px;border-radius:9px;flex-shrink:0;
+  background:var(--card2);border:1px solid var(--b1);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--ff);font-size:13px;font-weight:800;color:var(--vi);text-transform:uppercase;
+}
+.pc-name{font-family:var(--ff);font-size:14px;font-weight:700;line-height:1.2}
+.pc-sub{font-size:11px;color:var(--t3);margin-top:2px}
+.pc-sc{
+  margin-left:auto;flex-shrink:0;font-family:var(--ff);font-size:13px;font-weight:800;
+  padding:3px 8px;border-radius:6px;
+}
+.sc-hi{background:rgba(52,211,153,.12);color:var(--em)}
+.sc-md{background:rgba(251,191,36,.12);color:var(--am)}
+.sc-lo{background:rgba(251,113,133,.12);color:var(--re)}
+
+.pc-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:9px}
+.pc-tag{
+  font-size:10px;padding:2px 7px;border-radius:4px;
+  background:rgba(255,255,255,.04);color:var(--t2);
+  border:1px solid var(--b1);white-space:nowrap;
+}
+
+.pc-traits{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:9px}
+.pt{background:var(--card2);border-radius:6px;padding:5px 8px}
+.pt-k{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--t3)}
+.pt-v{font-size:12px;color:var(--t1);font-weight:500;margin-top:1px}
+
+/* exa source badge */
+.exa-src{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:9px;color:var(--t3);font-family:var(--fm);
+  margin-bottom:8px;
+}
+.exa-src-dot{width:5px;height:5px;border-radius:50%;background:var(--em)}
+
+.pc-why{font-size:12px;color:var(--t2);line-height:1.55;margin-bottom:7px}
+.pc-sig{font-size:11px;color:var(--em);margin-bottom:3px;display:flex;gap:5px;align-items:flex-start}
+.pc-sig::before{content:"▲";font-size:8px;flex-shrink:0;margin-top:1px}
+.pc-hook{font-size:11px;color:var(--t3);font-style:italic;border-top:1px solid var(--b1);padding-top:7px;margin-top:7px;line-height:1.5}
+
+.pc-actions{display:flex;gap:5px;border-top:1px solid var(--b1);padding:9px 15px}
+.pa-btn{
+  flex:1;font-size:11px;padding:5px 7px;border-radius:5px;cursor:pointer;
+  border:1px solid var(--b1);background:transparent;color:var(--t2);
+  transition:all .15s;font-family:var(--fb);
+}
+.pa-btn:hover{color:var(--t1);border-color:var(--b2)}
+.pa-btn.saved{border-color:var(--em);color:var(--em);background:rgba(52,211,153,.06)}
+.pa-btn.copied{border-color:var(--vi);color:var(--vi);background:rgba(129,140,248,.06)}
+.pa-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* skeleton */
+.sk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:13px}
+.sk-c{
+  border-radius:var(--r);height:230px;
+  background:linear-gradient(90deg,var(--card) 25%,rgba(129,140,248,.05) 50%,var(--card) 75%);
+  background-size:400% 100%;animation:sh 1.5s infinite;
+}
+@keyframes sh{0%{background-position:100% 0}100%{background-position:-100% 0}}
+
+/* batch bar */
+.bbar{
+  padding:11px 22px;border-top:1px solid var(--b1);
+  background:rgba(13,13,28,.95);
+  display:none;align-items:center;gap:11px;flex-wrap:wrap;
+  backdrop-filter:blur(8px);flex-shrink:0;
+}
+.bbar.show{display:flex}
+.binfo{flex:1;font-size:12px;color:var(--t2)}
+.binfo strong{color:var(--t1)}
+
+/* ═══════════ SETTINGS MODAL ═══════════ */
+.modal-bg{
+  position:fixed;inset:0;background:rgba(0,0,0,.8);
+  display:none;align-items:center;justify-content:center;z-index:999;
+  backdrop-filter:blur(6px);
+}
+.modal-bg.open{display:flex}
+.modal{
+  background:var(--sf);border:1px solid var(--b2);border-radius:var(--rlg);
+  padding:28px;width:500px;max-width:95vw;max-height:90vh;overflow-y:auto;
+}
+.modal h3{font-family:var(--ff);font-size:18px;font-weight:800;margin-bottom:6px}
+.modal-sub{font-size:12px;color:var(--t2);margin-bottom:20px;line-height:1.6}
+.modal-field{margin-bottom:16px}
+.modal-field label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--t3);margin-bottom:5px}
+.modal-row{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+
+.hint{font-size:11px;color:var(--t3);margin-top:5px;line-height:1.5}
+.hint a{color:var(--vi);text-decoration:none}
+.hint a:hover{text-decoration:underline}
+
+.api-test-row{display:flex;gap:6px}
+.api-test-row .inp{flex:1}
+.test-btn{
+  flex-shrink:0;padding:9px 14px;background:var(--card2);border:1px solid var(--b1);
+  border-radius:var(--rsm);color:var(--t2);font-size:12px;cursor:pointer;
+  font-family:var(--fb);transition:all .15s;white-space:nowrap;
+}
+.test-btn:hover{border-color:var(--b2);color:var(--t1)}
+.test-result{
+  font-size:11px;padding:6px 10px;border-radius:var(--rsm);margin-top:6px;
+  font-family:var(--fm);display:none;
+}
+.test-result.ok{background:rgba(52,211,153,.1);color:var(--em);border:1px solid rgba(52,211,153,.2);display:block}
+.test-result.err{background:rgba(251,113,133,.1);color:var(--re);border:1px solid rgba(251,113,133,.2);display:block}
+
+/* export modal */
+.exp-csv{
+  background:var(--bg);border:1px solid var(--b1);border-radius:var(--rsm);
+  padding:11px;font-size:11px;font-family:var(--fm);color:var(--t2);
+  max-height:200px;overflow-y:auto;white-space:pre;margin-bottom:14px;
+}
+
+/* toast */
+.toast{
+  position:fixed;bottom:22px;right:22px;z-index:9999;
+  background:var(--card2);border:1px solid var(--b2);border-radius:var(--rsm);
+  padding:10px 18px;font-size:13px;color:var(--t1);font-family:var(--fb);
+  opacity:0;transform:translateY(8px) scale(.97);
+  transition:all .2s;pointer-events:none;
+}
+.toast.on{opacity:1;transform:translateY(0) scale(1)}
+
+/* error banner */
+.ebanner{
+  margin:14px 22px;padding:12px 15px;
+  background:rgba(251,113,133,.07);border:1px solid rgba(251,113,133,.2);
+  border-radius:var(--rsm);display:none;gap:10px;flex-shrink:0;
+}
+.ebanner.show{display:flex}
+.eb-icon{color:var(--re);font-size:16px;flex-shrink:0;margin-top:1px}
+.eb-body{flex:1}
+.eb-title{font-size:13px;font-weight:600;color:var(--re)}
+.eb-msg{font-size:12px;color:var(--t2);margin-top:2px;line-height:1.5}
+.eb-btns{display:flex;gap:6px;margin-top:7px}
+.eb-btn{
+  font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;
+  font-family:var(--fb);border:1px solid var(--b1);background:transparent;color:var(--t2);
+}
+.eb-btn:hover{border-color:var(--b2);color:var(--t1)}
+
+/* mobile */
+@media(max-width:680px){
+  .app{flex-direction:column}
+  .sb{width:100%;max-width:100%;min-width:unset}
+  .main{min-height:60vh}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ════════════════════ SIDEBAR ════════════════════ -->
+<aside class="sb">
+<div class="sb-inner">
+
+  <!-- Logo -->
+  <div class="logo">
+    <div class="logo-box"><span style="position:relative;z-index:1">⬡</span></div>
+    <div class="logo-text">Prospect<em>Radar</em></div>
+    <div class="logo-badge">v3</div>
+  </div>
+
+  <!-- API Key Status -->
+  <div>
+    <div class="lbl">Engine status</div>
+    <div class="key-status" onclick="openSettings()">
+      <div class="key-dot" id="exa-dot" title="Exa.ai"></div>
+      <div class="key-status-text" id="exa-status">Exa.ai — not configured</div>
+    </div>
+    <div style="height:5px"></div>
+    <div class="key-status" onclick="openSettings()">
+      <div class="key-dot" id="anth-dot" title="Anthropic"></div>
+      <div class="key-status-text" id="anth-status">Anthropic — not configured</div>
+    </div>
+    <div style="margin-top:7px">
+      <button class="btn btn-o btn-sm" style="width:100%;font-size:11px" onclick="openSettings()">
+        ⚙ Configure API keys
+      </button>
+    </div>
+  </div>
+
+  <!-- Engine badges -->
+  <div class="engine-badge">
+    <div class="engine-dot" id="eng-dot" style="background:var(--t3);box-shadow:none;animation:none"></div>
+    <span id="eng-label" style="flex:1">Exa.ai crawler + Claude intelligence</span>
+  </div>
+
+  <!-- Mode -->
+  <div>
+    <div class="lbl">Search mode</div>
+    <div class="mode-row">
+      <button class="mode-btn on" id="mb-co" onclick="setMode('company')">Companies</button>
+      <button class="mode-btn" id="mb-pe" onclick="setMode('person')">People</button>
+      <button class="mode-btn" id="mb-bo" onclick="setMode('both')">Both</button>
+    </div>
+  </div>
+
+  <!-- Query -->
+  <div>
+    <div class="lbl">Seed domain or query</div>
+    <textarea class="ta" id="qi" placeholder="stripe.com&#10;— or —&#10;Find CTOs at Series B fintech in India"></textarea>
+  </div>
+
+  <div id="pf" style="display:none">
+    <div class="lbl">Target role</div>
+    <input class="inp" id="f-role" placeholder="e.g. VP Sales, CTO, Head of Growth">
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="lbl">Industry</div>
+      <input class="inp" id="f-ind" placeholder="Fintech, SaaS…">
+    </div>
+    <div>
+      <div class="lbl">Geography</div>
+      <input class="inp" id="f-geo" placeholder="India, US…">
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="lbl">Size</div>
+      <select class="sel" id="f-size">
+        <option value="">Any</option>
+        <option value="1-10">1–10</option>
+        <option value="10-50">10–50</option>
+        <option value="50-200">50–200</option>
+        <option value="200-1000">200–1000</option>
+        <option value="1000+">1000+</option>
+      </select>
+    </div>
+    <div>
+      <div class="lbl">Stage</div>
+      <select class="sel" id="f-stage">
+        <option value="">Any</option>
+        <option value="Seed">Seed</option>
+        <option value="Series A">Series A</option>
+        <option value="Series B">Series B</option>
+        <option value="Series C+">Series C+</option>
+        <option value="Public">Public</option>
+        <option value="Bootstrapped">Bootstrapped</option>
+      </select>
+    </div>
+  </div>
+
+  <div>
+    <div class="lbl" style="display:flex;justify-content:space-between">
+      Min fit score <span class="sl-val" id="sv">6</span>
+    </div>
+    <div class="slider-wrap">
+      <input type="range" min="1" max="10" value="6" id="f-score"
+        oninput="document.getElementById('sv').textContent=this.value" style="flex:1">
+    </div>
+  </div>
+
+  <!-- ICP panel -->
+  <div class="icp-panel" id="icp-panel">
+    <div class="lbl" style="margin-bottom:6px">Crawled ICP</div>
+    <div id="icp-content"></div>
+    <div id="icp-tags" style="margin-top:6px"></div>
+  </div>
+
+  <button class="btn btn-p" id="go-btn" onclick="startSearch()">⬡ Scan prospects</button>
+  <button class="btn btn-o btn-sm" onclick="resetSession()">Reset session</button>
+
+  <!-- Session stats -->
+  <div id="stats-panel" style="display:none">
+    <div class="lbl">Session</div>
+    <div class="stat-grid">
+      <div class="stat-c"><div class="sv" id="s-found">0</div><div class="sk">Found</div></div>
+      <div class="stat-c"><div class="sv" id="s-batch">0</div><div class="sk">Batches</div></div>
+      <div class="stat-c"><div class="sv" id="s-crawled">0</div><div class="sk">Crawled</div></div>
+      <div class="stat-c"><div class="sv" id="s-scored">0</div><div class="sk">Scored</div></div>
+    </div>
+    <div style="margin-top:10px">
+      <div class="lbl">Cap usage (max 1000)</div>
+      <div class="cap-bg"><div class="cap-f" id="cap-f" style="width:0%"></div></div>
+      <div class="cap-lb"><span id="cap-n">0 used</span><span>1000 max</span></div>
+    </div>
+  </div>
+
+</div>
+</aside>
+
+<!-- ════════════════════ MAIN ════════════════════════ -->
+<main class="main">
+
+  <div class="topbar">
+    <div class="tb-title" id="tb-title">ProspectRadar — Exa.ai + Claude intelligence</div>
+    <div class="tb-meta" id="tb-meta"></div>
+    <button class="icon-btn" id="btn-log" onclick="toggleLog()" style="display:none">Logs</button>
+    <button class="icon-btn" id="btn-export" onclick="openExport()" style="display:none">Export CSV</button>
+    <button class="icon-btn" onclick="openSettings()">⚙ Keys</button>
+  </div>
+
+  <!-- Pipeline stepper -->
+  <div class="pipeline" id="pipeline">
+    <div class="ps" id="ps-crawl"><div class="pd">1</div>Exa crawl seed</div>
+    <div class="pa">›</div>
+    <div class="ps" id="ps-icp"><div class="pd">2</div>Claude ICP</div>
+    <div class="pa">›</div>
+    <div class="ps" id="ps-similar"><div class="pd">3</div>Exa findSimilar</div>
+    <div class="pa">›</div>
+    <div class="ps" id="ps-search"><div class="pd">4</div>Exa search</div>
+    <div class="pa">›</div>
+    <div class="ps" id="ps-enrich"><div class="pd">5</div>Exa contents</div>
+    <div class="pa">›</div>
+    <div class="ps" id="ps-score"><div class="pd">6</div>Claude score</div>
+    <div class="pa">›</div>
+    <div class="ps" id="ps-out"><div class="pd">7</div>Batch 25</div>
+  </div>
+
+  <!-- Live log -->
+  <div class="live-log" id="live-log"></div>
+
+  <!-- Error banner -->
+  <div class="ebanner" id="ebanner">
+    <div class="eb-icon">⚠</div>
+    <div class="eb-body">
+      <div class="eb-title" id="eb-title">Error</div>
+      <div class="eb-msg" id="eb-msg"></div>
+      <div class="eb-btns">
+        <button class="eb-btn" onclick="retryLast()">Retry</button>
+        <button class="eb-btn" onclick="relaxFilters()">Relax filters</button>
+        <button class="eb-btn" onclick="openSettings()">Check API keys</button>
+        <button class="eb-btn" onclick="hideErr()">Dismiss</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="content" id="content">
+    <div class="empty" id="empty-s">
+      <div class="e-ring"><div class="e-dot"></div></div>
+      <div class="e-h">Live prospect intelligence</div>
+      <div class="e-p">Enter a seed domain (e.g. <strong>stripe.com</strong>) or natural-language query. ProspectRadar uses <strong>Exa.ai</strong> to crawl the live web and find lookalikes, then <strong>Claude</strong> scores them against a real-time extracted ICP.</div>
+      <button class="btn btn-o btn-sm" onclick="openSettings()" style="width:auto;padding:8px 20px">
+        ⚙ Configure API keys first
+      </button>
+    </div>
+  </div>
+
+  <!-- Batch bar -->
+  <div class="bbar" id="bbar">
+    <div class="binfo" id="binfo"></div>
+    <button class="btn btn-o btn-sm" onclick="openExport()" style="width:auto">Export</button>
+    <button class="btn btn-p btn-sm" id="next-btn" onclick="nextBatch()" style="width:auto;padding:8px 20px">Next 25 →</button>
+  </div>
+
+</main>
+</div>
+
+<!-- ════════════════════ SETTINGS MODAL ═══════════════ -->
+<div class="modal-bg" id="settings-modal" onclick="if(event.target===this)closeSettings()">
+<div class="modal">
+  <h3>⚙ API Keys & Configuration</h3>
+  <div class="modal-sub">
+    Keys are stored in <strong>session storage only</strong> — never sent anywhere except the Exa.ai and Anthropic APIs. Use a backend proxy in production (see Deployment Guide).
+  </div>
+
+  <!-- Exa.ai -->
+  <div class="modal-field">
+    <label>Exa.ai API Key <span style="color:var(--re)">*required</span></label>
+    <div class="api-test-row">
+      <input class="inp" type="password" id="k-exa" placeholder="exa-key-…" autocomplete="off">
+      <button class="test-btn" onclick="testExa()">Test</button>
+    </div>
+    <div class="hint">
+      Get free key at <a href="https://exa.ai" target="_blank">exa.ai</a> → Dashboard → API Keys.
+      Used for: real web crawl, findSimilar, semantic search.<br>
+      Free tier: 1000 searches/month. Starter: $5/month.
+    </div>
+    <div class="test-result" id="exa-test-result"></div>
+  </div>
+
+  <!-- Anthropic -->
+  <div class="modal-field">
+    <label>Anthropic API Key <span style="color:var(--re)">*required</span></label>
+    <div class="api-test-row">
+      <input class="inp" type="password" id="k-anth" placeholder="sk-ant-…" autocomplete="off">
+      <button class="test-btn" onclick="testAnth()">Test</button>
+    </div>
+    <div class="hint">
+      Get at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys.<br>
+      <strong>Proxy recommended for production</strong> — key stays server-side.
+    </div>
+    <div class="test-result" id="anth-test-result"></div>
+  </div>
+
+  <!-- Proxy -->
+  <div class="modal-field">
+    <label>Backend Proxy URL <span style="color:var(--t3)">(optional — production)</span></label>
+    <input class="inp" id="k-proxy" placeholder="https://your-proxy.com" type="url">
+    <div class="hint">
+      If set, all API calls route through your proxy instead of directly from the browser.
+      Routes: <code style="color:var(--vi)">POST /api/exa/*</code> and <code style="color:var(--vi)">POST /api/claude</code>
+    </div>
+  </div>
+
+  <div class="modal-row">
+    <button class="btn btn-o btn-sm" onclick="closeSettings()" style="width:auto">Cancel</button>
+    <button class="btn btn-p btn-sm" onclick="saveKeys()" style="width:auto;padding:8px 22px">Save keys</button>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════ EXPORT MODAL ══════════════════ -->
+<div class="modal-bg" id="export-modal" onclick="if(event.target===this)closeExport()">
+<div class="modal">
+  <h3>Export results</h3>
+  <div class="exp-csv" id="csv-preview"></div>
+  <div class="modal-row">
+    <button class="btn btn-o btn-sm" onclick="closeExport()" style="width:auto">Close</button>
+    <button class="btn btn-p btn-sm" onclick="downloadCSV()" style="width:auto;padding:8px 20px">Download CSV</button>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ════════════════════ ENGINE ═════════════════════════ -->
+<script>
+'use strict';
+
+/* ════════════════════════════════════════════════════
+   SESSION STATE
+════════════════════════════════════════════════════ */
+const S = {
+  mode:'company',
+  rawQuery:'',
+  filters:{},
+  seedUrl:'',
+  seedProfile:null,
+  icp:null,
+  cursor:0,
+  totalFound:0,
+  batchNum:0,
+  alreadyDomains:new Set(),     // domain dedupe
+  alreadyExaIds:new Set(),      // Exa result-id dedupe
+  queriesUsed:[],
+  allResults:[],
+  crawledCount:0,
+  scoredCount:0,
+  isRunning:false,
+  lastError:null,
+  claudeHistory:[],
+  // Keys (loaded from sessionStorage)
+  keys:{ exa:'', anthropic:'', proxy:'' },
+};
+
+const STEPS = ['crawl','icp','similar','search','enrich','score','out'];
+
+/* ════════════════════════════════════════════════════
+   KEY MANAGEMENT
+════════════════════════════════════════════════════ */
+function loadKeys(){
+  try{
+    S.keys.exa = sessionStorage.getItem('pr_exa')||'';
+    S.keys.anthropic = sessionStorage.getItem('pr_anth')||'';
+    S.keys.proxy = sessionStorage.getItem('pr_proxy')||'';
+    // Also support external injection
+    if(window.PR_EXA_KEY) S.keys.exa = window.PR_EXA_KEY;
+    if(window.PR_ANTHROPIC_KEY) S.keys.anthropic = window.PR_ANTHROPIC_KEY;
+    if(window.PROXY_URL) S.keys.proxy = window.PROXY_URL;
+  }catch(e){}
+  updateKeyStatus();
+}
+
+function saveKeys(){
+  S.keys.exa = document.getElementById('k-exa').value.trim();
+  S.keys.anthropic = document.getElementById('k-anth').value.trim();
+  S.keys.proxy = document.getElementById('k-proxy').value.trim();
+  try{
+    if(S.keys.exa) sessionStorage.setItem('pr_exa', S.keys.exa);
+    if(S.keys.anthropic) sessionStorage.setItem('pr_anth', S.keys.anthropic);
+    if(S.keys.proxy) sessionStorage.setItem('pr_proxy', S.keys.proxy);
+  }catch(e){}
+  updateKeyStatus();
+  closeSettings();
+  toast('Keys saved ✓');
+}
+
+function updateKeyStatus(){
+  const ed = document.getElementById('exa-dot');
+  const es = document.getElementById('exa-status');
+  const ad = document.getElementById('anth-dot');
+  const as2 = document.getElementById('anth-status');
+  const eng = document.getElementById('eng-dot');
+  const el = document.getElementById('eng-label');
+
+  if(S.keys.exa){
+    ed.className='key-dot ok'; es.textContent='Exa.ai — configured ✓';
+  } else {
+    ed.className='key-dot err'; es.textContent='Exa.ai — key missing';
+  }
+
+  if(S.keys.anthropic || S.keys.proxy){
+    ad.className='key-dot ok';
+    as2.textContent = S.keys.proxy ? `Anthropic — via proxy ✓` : 'Anthropic — direct key ✓';
+  } else {
+    ad.className='key-dot err'; as2.textContent='Anthropic — key missing';
+  }
+
+  const ready = S.keys.exa && (S.keys.anthropic || S.keys.proxy);
+  eng.style.background = ready ? 'var(--em)' : 'var(--t3)';
+  eng.style.boxShadow = ready ? '0 0 6px rgba(52,211,153,.5)' : 'none';
+  eng.style.animation = ready ? 'pulse 2s infinite' : 'none';
+  el.textContent = ready ? 'Exa.ai + Claude — ready' : 'Configure keys to start';
+}
+
+function openSettings(){
+  document.getElementById('k-exa').value = S.keys.exa;
+  document.getElementById('k-anth').value = S.keys.anthropic;
+  document.getElementById('k-proxy').value = S.keys.proxy;
+  document.getElementById('settings-modal').classList.add('open');
+}
+function closeSettings(){ document.getElementById('settings-modal').classList.remove('open'); }
+
+/* ════════════════════════════════════════════════════
+   API KEY TESTS
+════════════════════════════════════════════════════ */
+async function testExa(){
+  const key = document.getElementById('k-exa').value.trim();
+  const el = document.getElementById('exa-test-result');
+  if(!key){ el.className='test-result err'; el.textContent='Enter a key first'; return; }
+  el.className='test-result ok'; el.textContent='Testing…';
+  try{
+    const r = await exaSearch('Stripe payments company', 1, key);
+    if(r.results && r.results.length > 0){
+      el.className='test-result ok'; el.textContent=`✓ Valid — got ${r.results.length} result`;
+    } else {
+      el.className='test-result err'; el.textContent='Unexpected response structure';
+    }
+  }catch(e){
+    el.className='test-result err'; el.textContent=`✗ ${e.message}`;
+  }
+}
+
+async function testAnth(){
+  const key = document.getElementById('k-anth').value.trim();
+  const proxy = document.getElementById('k-proxy').value.trim();
+  const el = document.getElementById('anth-test-result');
+  if(!key && !proxy){ el.className='test-result err'; el.textContent='Enter key or proxy URL first'; return; }
+  el.className='test-result ok'; el.textContent='Testing…';
+  try{
+    const resp = await callClaude([{role:'user',content:'Reply with exactly: OK'}],'Reply with exactly: OK', key, proxy);
+    const txt = resp.content?.filter(b=>b.type==='text').map(b=>b.text).join('').trim();
+    el.className='test-result ok'; el.textContent=`✓ Valid — "${txt.slice(0,40)}"`;
+  }catch(e){
+    el.className='test-result err'; el.textContent=`✗ ${e.message}`;
+  }
+}
+
+/* ════════════════════════════════════════════════════
+   EXA.AI API LAYER
+   Real web crawler — fetches and crawls actual pages
+════════════════════════════════════════════════════ */
+
+function exaHeaders(key){
+  return {
+    'Content-Type':'application/json',
+    'x-api-key': key || S.keys.exa,
+  };
+}
+
+function exaBaseUrl(path){
+  if(S.keys.proxy) return `${S.keys.proxy}/api/exa${path}`;
+  return `https://api.exa.ai${path}`;
+}
+
+// Search with semantic neural search
+async function exaSearch(query, numResults=10, keyOverride=null){
+  const key = keyOverride || S.keys.exa;
+  if(!key) throw new Error('EXA_KEY_MISSING: Add Exa.ai key in ⚙ settings');
+  const resp = await fetch(exaBaseUrl('/search'),{
+    method:'POST',
+    headers: keyOverride ? {'Content-Type':'application/json','x-api-key':key} : exaHeaders(),
+    body: JSON.stringify({
+      query,
+      type:'neural',
+      numResults,
+      useAutoprompt:true,
+      contents:{ text:{ maxCharacters:1500 } }
+    })
+  });
+  if(!resp.ok){
+    const e = await resp.json().catch(()=>({}));
+    throw new Error(e.error || e.message || `Exa search failed ${resp.status}`);
+  }
+  return resp.json();
+}
+
+// Find similar pages to a URL
+async function exaFindSimilar(url, numResults=15, excludeDomains=[]){
+  if(!S.keys.exa) throw new Error('EXA_KEY_MISSING: Add Exa.ai key in ⚙ settings');
+  const body = {
+    url,
+    numResults,
+    excludeDomains: excludeDomains.slice(0,50),
+    contents:{ text:{ maxCharacters:1500 } }
+  };
+  const resp = await fetch(exaBaseUrl('/findSimilar'),{
+    method:'POST', headers:exaHeaders(),
+    body: JSON.stringify(body)
+  });
+  if(!resp.ok){
+    const e = await resp.json().catch(()=>({}));
+    if(resp.status === 422 || String(e.error||'').includes('URL')){
+      throw new Error(`EXA_BAD_URL: Exa findSimilar rejected "${url}". Use a full URL like https://stripe.com`);
+    }
+    throw new Error(e.error || e.message || `Exa findSimilar failed ${resp.status}`);
+  }
+  return resp.json();
+}
+
+// Get full page contents by Exa IDs
+async function exaContents(ids){
+  if(!S.keys.exa) throw new Error('EXA_KEY_MISSING');
+  if(!ids || ids.length === 0) return { results:[] };
+  const resp = await fetch(exaBaseUrl('/contents'),{
+    method:'POST', headers:exaHeaders(),
+    body: JSON.stringify({
+      ids: ids.slice(0, 20),
+      text:{ maxCharacters:2000 }
+    })
+  });
+  if(!resp.ok){
+    const e = await resp.json().catch(()=>({}));
+    // Non-fatal: return empty, don't block pipeline
+    clog(`Exa contents warn: ${e.error||resp.status}`, 'warn');
+    return { results:[] };
+  }
+  return resp.json();
+}
+
+/* ════════════════════════════════════════════════════
+   ANTHROPIC API LAYER
+════════════════════════════════════════════════════ */
+async function callClaude(messages, system, keyOverride=null, proxyOverride=null){
+  const key = keyOverride || S.keys.anthropic;
+  const proxy = proxyOverride !== null ? proxyOverride : S.keys.proxy;
+
+  if(!key && !proxy) throw new Error('ANTH_KEY_MISSING: Add Anthropic key in ⚙ settings');
+
+  const endpoint = proxy ? `${proxy}/api/claude` : 'https://api.anthropic.com/v1/messages';
+  const headers = {'Content-Type':'application/json'};
+  if(!proxy && key){
+    headers['x-api-key'] = key;
+    headers['anthropic-version'] = '2023-06-01';
+  }
+
+  const resp = await fetch(endpoint,{
+    method:'POST', headers,
+    body: JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:4000,
+      system,
+      messages
+    })
+  });
+
+  if(!resp.ok){
+    const e = await resp.json().catch(()=>({}));
+    const t = e.error?.type||'';
+    if(resp.status===401||t==='authentication_error') throw new Error('ANTH_AUTH: Invalid Anthropic key');
+    if(resp.status===529||t==='overloaded_error') throw new Error('ANTH_OVERLOADED');
+    if(resp.status===429) throw new Error('ANTH_RATE_LIMIT');
+    throw new Error(e.error?.message || `Anthropic API error ${resp.status}`);
+  }
+  return resp.json();
+}
+
+function claudeText(data){
+  return (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+}
+
+/* ════════════════════════════════════════════════════
+   JSON PARSER (robust)
+════════════════════════════════════════════════════ */
+function parseJSON(raw){
+  if(!raw) throw new Error('Empty response');
+  const s = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+  // Find deepest balanced { }
+  let depth=0, start=-1, end=-1;
+  for(let i=0;i<s.length;i++){
+    if(s[i]==='{'){if(!depth)start=i;depth++;}
+    else if(s[i]==='}'){depth--;if(!depth){end=i;break;}}
+  }
+  if(start<0||end<0) throw new Error('No JSON in response — try a clearer query');
+  try{ return JSON.parse(s.slice(start,end+1)); }
+  catch(e){
+    // Relax: strip trailing commas
+    const relaxed = s.slice(start,end+1).replace(/,(\s*[}\]])/g,'$1');
+    return JSON.parse(relaxed);
+  }
+}
+
+/* ════════════════════════════════════════════════════
+   RETRY WRAPPER
+════════════════════════════════════════════════════ */
+async function retry(fn, attempts=3){
+  for(let i=0;i<attempts;i++){
+    try{ return await fn(); }
+    catch(e){
+      const m = e.message||'';
+      if((m.includes('OVERLOADED')||m.includes('RATE_LIMIT'))&&i<attempts-1){
+        const wait=(i+1)*4000;
+        clog(`API busy — waiting ${wait/1000}s (attempt ${i+1}/${attempts})`, 'warn');
+        await sleep(wait); continue;
+      }
+      throw e;
+    }
+  }
+}
+
+/* ════════════════════════════════════════════════════
+   PIPELINE — STEP 1: EXA CRAWL SEED
+   Real-time crawl of the seed domain via Exa.ai
+════════════════════════════════════════════════════ */
+async function crawlSeed(query){
+  // Detect if input looks like a domain/URL
+  const domainMatch = query.match(/(?:https?:\/\/)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)/);
+  let seedUrl = null;
+  let seedText = '';
+  let seedId = null;
+
+  if(domainMatch){
+    const domain = domainMatch[1];
+    seedUrl = `https://${domain}`;
+    S.seedUrl = seedUrl;
+    clog(`Seed URL: ${seedUrl}`, 'info');
+
+    // Get seed page content via Exa search on the domain
+    clog(`Exa.ai: searching for "${domain}"`, 'info');
+    const searchResp = await retry(()=>exaSearch(`site:${domain} company about`, 3));
+    S.crawledCount += 3;
+
+    if(searchResp.results && searchResp.results.length > 0){
+      // Take content from first result
+      const r0 = searchResp.results[0];
+      seedText = r0.text || '';
+      seedId = r0.id;
+      clog(`Seed crawled: ${r0.url} (${seedText.length} chars)`, 'ok');
+
+      // Also try to get homepage content directly
+      if(r0.id){
+        const contents = await exaContents([r0.id]).catch(()=>({results:[]}));
+        if(contents.results && contents.results[0]){
+          seedText = contents.results[0].text || seedText;
+        }
+      }
+    } else {
+      // Fallback: search for the company name
+      clog(`No direct results for ${domain} — searching broadly`, 'warn');
+      const fb = await retry(()=>exaSearch(domain+' company overview', 5));
+      S.crawledCount += 5;
+      if(fb.results && fb.results.length > 0){
+        seedText = fb.results.map(r=>r.text||'').join('\n\n').slice(0,3000);
+      }
+    }
+  } else {
+    // NL query — search for context
+    clog(`NL query mode: searching "${query}"`, 'info');
+    const searchResp = await retry(()=>exaSearch(query, 5));
+    S.crawledCount += 5;
+    if(searchResp.results){
+      seedText = searchResp.results.map(r=>r.text||'').join('\n\n').slice(0,3000);
+    }
+  }
+
+  return { seedUrl, seedText, seedId };
+}
+
+/* ════════════════════════════════════════════════════
+   PIPELINE — STEP 2: CLAUDE ICP EXTRACTION
+   Claude analyses crawled text → structured ICP
+════════════════════════════════════════════════════ */
+async function extractICP(query, seedText){
+  const system = `You are a B2B intelligence analyst. Extract a structured company/prospect ICP from crawled web content.
+Return ONLY valid JSON, no markdown, no prose:
+{
+  "company_name":"...",
+  "domain":"...",
+  "tagline":"...",
+  "industry":"...",
+  "sub_vertical":"...",
+  "hq":"City, Country",
+  "size_band":"50-200 employees",
+  "funding_stage":"Series B",
+  "business_model":"B2B SaaS/B2C/marketplace/API platform/etc",
+  "customer_segment":"SMB/Enterprise/Consumer",
+  "key_products":["product1","product2"],
+  "pain_points_solved":["pain1","pain2"],
+  "tech_signals":["AWS","Python","React"],
+  "growth_signals":["Hiring 20 engineers","Launched EU market"],
+  "ideal_lookalike":{
+    "industry":"same vertical",
+    "size":"similar or smaller",
+    "geo":"same or adjacent",
+    "model":"same go-to-market",
+    "stage":"same or earlier",
+    "titles":["VP Eng","CTO","Head of Payments"]
+  }
+}`;
+  const userMsg = `Query: "${query}"\n\nCrawled content:\n${seedText.slice(0,3000)||'No content available'}\n\nExtract ICP.`;
+  const resp = await retry(()=>callClaude([{role:'user',content:userMsg}], system));
+  return parseJSON(claudeText(resp));
+}
+
+/* ════════════════════════════════════════════════════
+   PIPELINE — STEPS 3-4: EXA LOOKALIKE DISCOVERY
+   findSimilar + multi-query search
+════════════════════════════════════════════════════ */
+async function discoverLookalikes(icp, batchNum){
+  const excludeDomains = [...S.alreadyDomains].slice(0,50);
+  const allExaResults = [];
+
+  // Step 3: findSimilar (only if we have a real URL)
+  if(S.seedUrl && batchNum === 1){
+    clog(`Exa.ai findSimilar: ${S.seedUrl}`, 'info');
+    try{
+      const sim = await retry(()=>exaFindSimilar(S.seedUrl, 20, excludeDomains));
+      S.crawledCount += (sim.results||[]).length;
+      if(sim.results) allExaResults.push(...sim.results);
+      clog(`findSimilar: ${(sim.results||[]).length} results`, 'ok');
+    }catch(e){
+      if(e.message.includes('EXA_BAD_URL')){
+        clog(`findSimilar skipped: ${e.message}`, 'warn');
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  // Step 4: Multi-query semantic search
+  const queries = buildSearchQueries(icp, batchNum);
+  clog(`Generated ${queries.length} search queries for batch ${batchNum}`, 'info');
+
+  for(const q of queries){
+    if(S.queriesUsed.includes(q)) continue;
+    S.queriesUsed.push(q);
+    clog(`Exa search: "${q}"`, 'info');
+    try{
+      const sr = await retry(()=>exaSearch(q, 10));
+      S.crawledCount += (sr.results||[]).length;
+      if(sr.results) allExaResults.push(...sr.results);
+    }catch(e){
+      clog(`Search failed for "${q}": ${e.message}`, 'warn');
+    }
+  }
+
+  clog(`Total Exa candidates: ${allExaResults.length}`, 'ok');
+  return allExaResults;
+}
+
+function buildSearchQueries(icp, batchNum){
+  const ind = icp.industry || S.filters.industry || 'tech';
+  const geo = S.filters.geo || icp.ideal_lookalike?.geo || '';
+  const model = icp.business_model || 'SaaS';
+  const stage = S.filters.stage || icp.ideal_lookalike?.stage || 'startup';
+  const size = S.filters.size || icp.size_band || '';
+  const seg = icp.customer_segment || '';
+  const pain = (icp.pain_points_solved||[]).slice(0,2).join(' ');
+  const geoStr = geo ? ` ${geo}` : '';
+
+  const pool = [
+    // Angle 1: Industry + model + geo
+    `${ind} ${model} company${geoStr} ${stage}`,
+    // Angle 2: Customer segment + pain
+    `${model} platform ${seg} ${pain}`.trim(),
+    // Angle 3: Hiring signal
+    `${ind} startup hiring engineers${geoStr} ${stage}`,
+    // Angle 4: Funding signal
+    `${ind} company raised funding${geoStr} Series`,
+    // Angle 5: Product angle
+    `${ind} API platform ${seg}${geoStr}`,
+    // Angle 6: Competitor angle
+    `${ind} alternative competitor ${model}${geoStr}`,
+    // Angle 7: Growth angle
+    `${ind} fast growing startup${geoStr} ${stage}`,
+    // Angle 8: Tech stack angle
+    `${(icp.tech_signals||[]).slice(0,2).join(' ')} ${ind} platform`.trim(),
+  ].filter(q=>q.trim().length>5);
+
+  // Rotate pool based on batch number to ensure variety
+  const offset = ((batchNum-1)*3) % pool.length;
+  const rotated = [...pool.slice(offset), ...pool.slice(0,offset)];
+
+  // Take 4-5 queries, skip any already used
+  return rotated.filter(q=>!S.queriesUsed.includes(q)).slice(0,5);
+}
+
+/* ════════════════════════════════════════════════════
+   PIPELINE — STEP 5: EXA CONTENTS ENRICHMENT
+   Crawl candidate pages for richer data
+════════════════════════════════════════════════════ */
+async function enrichCandidates(exaResults){
+  // Dedupe by domain
+  const seen = new Set();
+  const unique = exaResults.filter(r=>{
+    if(!r||!r.url) return false;
+    const d = extractDomain(r.url);
+    if(S.alreadyDomains.has(d)) return false;
+    if(seen.has(d)) return false;
+    seen.add(d);
+    return true;
+  });
+
+  clog(`${unique.length} unique candidates after domain dedupe`, 'info');
+
+  // Get IDs for content fetching (prefer those without text yet)
+  const needsContent = unique.filter(r=>!r.text||r.text.length<200).map(r=>r.id).filter(Boolean);
+  if(needsContent.length > 0){
+    clog(`Exa contents: fetching ${Math.min(needsContent.length,15)} pages`, 'info');
+    const contents = await exaContents(needsContent.slice(0,15));
+    S.crawledCount += (contents.results||[]).length;
+    // Merge content back
+    (contents.results||[]).forEach(cr=>{
+      const match = unique.find(r=>r.id===cr.id);
+      if(match && cr.text) match.text = cr.text;
+    });
+  }
+
+  return unique;
+}
+
+/* ════════════════════════════════════════════════════
+   PIPELINE — STEP 6: CLAUDE SCORING
+   Claude scores all candidates against ICP
+════════════════════════════════════════════════════ */
+async function scoreCandidates(candidates, icp, filters){
+  const minScore = filters.minScore || 5;
+
+  // Build a compact candidate list for Claude (token-efficient)
+  const compact = candidates.slice(0,30).map((c,i)=>({
+    idx:i,
+    url:c.url,
+    title:c.title||'',
+    snippet:(c.text||'').slice(0,400),
+  }));
+
+  const system = `You are ProspectRadar scoring engine. Score each candidate against the ICP.
+Return ONLY JSON array:
+[
+  {
+    "idx": 0,
+    "name": "Company Name",
+    "website": "https://domain.com",
+    "linkedin": "https://linkedin.com/company/...",
+    "hq": "City, Country",
+    "size": "50-200 employees",
+    "industry": "...",
+    "stage": "Series B",
+    "founding_year": "2019",
+    "business_model": "B2B SaaS",
+    "customer_segment": "SMB",
+    "fit_score": 8,
+    "why_fit": "2-3 sentence explanation referencing specific ICP traits matched",
+    "signals": ["Raised $20M Series B", "Hiring 15 engineers", "Launched India market"],
+    "target_role": "VP Engineering",
+    "outreach_hook": "1-sentence personalised hook based on their signals",
+    "key_products": ["Product A"],
+    "tech_stack": ["AWS","React"]
+  }
+]
+Fit score 1-10: 8-10=strong match, 5-7=partial, 1-4=weak. Only include candidates that score >= ${minScore}.
+If candidate is clearly irrelevant (blog, news site, etc) omit it entirely.`;
+
+  const userMsg = `ICP: ${JSON.stringify(icp)}
+Filters: ${JSON.stringify(filters)}
+Mode: ${S.mode}
+
+Candidates to score:
+${JSON.stringify(compact)}
+
+Score each against ICP. Return JSON array only.`;
+
+  const resp = await retry(()=>callClaude([{role:'user',content:userMsg}], system));
+  const raw = claudeText(resp);
+  S.scoredCount += candidates.length;
+
+  // Parse array
+  const s = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+  const arrStart = s.indexOf('[');
+  const arrEnd = s.lastIndexOf(']');
+  if(arrStart<0||arrEnd<0) throw new Error('Claude score response had no array');
+  try{ return JSON.parse(s.slice(arrStart,arrEnd+1)); }
+  catch(e){
+    const relaxed = s.slice(arrStart,arrEnd+1).replace(/,(\s*[}\]])/g,'$1');
+    return JSON.parse(relaxed);
+  }
+}
+
+/* ════════════════════════════════════════════════════
+   MAIN SEARCH ORCHESTRATOR
+════════════════════════════════════════════════════ */
+async function startSearch(){
+  const query = document.getElementById('qi').value.trim();
+  if(!query){ toast('Enter a company domain or search query'); return; }
+  if(!S.keys.exa){ toast('Add your Exa.ai key first — click ⚙ Keys'); openSettings(); return; }
+  if(!S.keys.anthropic && !S.keys.proxy){ toast('Add your Anthropic key — click ⚙ Keys'); openSettings(); return; }
+  if(S.isRunning) return;
+  if(S.totalFound >= 1000){ toast('Session cap of 1000 reached. Reset to start.'); return; }
+
+  S.isRunning = true;
+  S.rawQuery = query;
+  S.filters = getFilters();
+  // Reset session state
+  S.claudeHistory = [];
+  S.alreadyDomains = new Set();
+  S.alreadyExaIds = new Set();
+  S.queriesUsed = [];
+  S.allResults = [];
+  S.totalFound = 0;
+  S.batchNum = 0;
+  S.crawledCount = 0;
+  S.scoredCount = 0;
+  S.seedProfile = null;
+  S.seedUrl = '';
+
+  hideErr(); resetPipe();
+  setBtn(true); showSkeleton(6);
+  document.getElementById('live-log').classList.add('open');
+  document.getElementById('bbar').classList.remove('show');
+  document.getElementById('icp-panel').classList.remove('show');
+  document.getElementById('btn-export').style.display='none';
+  document.getElementById('tb-title').textContent=`Scanning: "${query}"`;
+  document.getElementById('tb-meta').textContent='';
+
+  try{
+    await runBatch(true);
+  }catch(e){
+    handleError(e);
+  }
+}
+
+async function nextBatch(){
+  if(S.isRunning) return;
+  if(S.totalFound >= 1000){ toast('Cap of 1000 reached. Export and reset.'); return; }
+  if(!S.seedProfile){ toast('Start a search first'); return; }
+  S.isRunning = true;
+  document.getElementById('next-btn').disabled = true;
+  document.getElementById('next-btn').textContent = 'Scanning…';
+  showSkeleton(3);
+  try{
+    await runBatch(false);
+  }catch(e){
+    handleError(e);
+  }
+}
+
+async function runBatch(isFirst){
+  try{
+    let icp = S.seedProfile;
+
+    // ── FIRST BATCH: crawl seed + extract ICP ──────────────
+    if(isFirst){
+      setPipe('crawl');
+      clog(`Crawling seed: "${S.rawQuery}"`, 'info');
+      const { seedUrl, seedText } = await crawlSeed(S.rawQuery);
+
+      setPipe('icp');
+      clog('Claude extracting ICP from crawled data…', 'info');
+      icp = await retry(()=>extractICP(S.rawQuery, seedText));
+      S.seedProfile = icp;
+      showICP(icp);
+      clog(`ICP: ${icp.company_name||'Unknown'} · ${icp.industry} · ${icp.size_band}`, 'ok');
+
+      // Merge user filters
+      if(S.filters.industry) icp.ideal_lookalike.industry = S.filters.industry;
+      if(S.filters.geo) icp.ideal_lookalike.geo = S.filters.geo;
+      if(S.filters.size) icp.ideal_lookalike.size = S.filters.size;
+      if(S.filters.stage) icp.ideal_lookalike.stage = S.filters.stage;
+    }
+
+    // ── STEPS 3-4: Exa discover ────────────────────────────
+    setPipe('similar');
+    clog(`Exa.ai: finding lookalikes (batch ${S.batchNum+1})…`, 'info');
+    const exaRaw = await discoverLookalikes(icp, S.batchNum+1);
+
+    setPipe('search');
+    await sleep(50); // stepper visual update
+
+    // ── STEP 5: Enrich ─────────────────────────────────────
+    setPipe('enrich');
+    clog('Enriching candidate pages…', 'info');
+    const enriched = await enrichCandidates(exaRaw);
+    clog(`${enriched.length} candidates enriched`, 'ok');
+
+    if(enriched.length === 0){
+      if(S.batchNum === 0){
+        throw new Error('No candidates found. Try a different seed domain or check your Exa.ai key.');
+      } else {
+        showExhausted(); return;
+      }
+    }
+
+    // ── STEP 6: Score ───────────────────────────────────────
+    setPipe('score');
+    clog(`Claude scoring ${enriched.length} candidates against ICP…`, 'info');
+    const scored = await retry(()=>scoreCandidates(enriched, icp, S.filters));
+    clog(`Scored: ${scored.length} prospects passed min-score filter`, 'ok');
+
+    // ── STEP 7: Dedupe, slice batch of 25 ───────────────────
+    setPipe('out');
+    const fresh = scored
+      .filter(p=>{
+        if(!p||!p.name) return false;
+        const dom = extractDomain(p.website||'');
+        if(!dom) return false;
+        if(S.alreadyDomains.has(dom)){ clog(`Deduped: ${p.name}`,  'dim'); return false; }
+        S.alreadyDomains.add(dom);
+        return true;
+      })
+      .filter(p=>(p.fit_score||0)>=(S.filters.minScore||1))
+      .sort((a,b)=>(b.fit_score||0)-(a.fit_score||0))
+      .slice(0,25);
+
+    clog(`Batch ${S.batchNum+1}: ${fresh.length} new unique prospects`, 'ok');
+
+    if(fresh.length === 0){
+      if(S.batchNum === 0){
+        throw new Error('All candidates were filtered out by min-score or deduplication. Lower the min score or broaden your query.');
+      }
+      showExhausted(); return;
+    }
+
+    S.allResults.push(...fresh);
+    S.totalFound += fresh.length;
+    S.batchNum++;
+
+    renderCards(fresh, !isFirst);
+    document.getElementById('tb-title').textContent=`"${S.rawQuery}" — ${S.totalFound} prospects`;
+    document.getElementById('tb-meta').textContent=`Batch ${S.batchNum} · ${S.crawledCount} pages crawled · ${S.queriesUsed.length} queries`;
+
+    showBatchBar(fresh.length < 25);
+    updateStats();
+    document.getElementById('btn-export').style.display='';
+    document.getElementById('btn-log').style.display='';
+
+  }finally{
+    S.isRunning = false;
+    setBtn(false);
+    const nb = document.getElementById('next-btn');
+    if(nb){ nb.disabled=false; nb.textContent='Next 25 →'; }
+  }
+}
+
+/* ════════════════════════════════════════════════════
+   UI HELPERS
+════════════════════════════════════════════════════ */
+function setMode(m){
+  S.mode=m;
+  ['co','pe','bo'].forEach((x,i)=>{
+    const modes=['company','person','both'];
+    document.getElementById('mb-'+x).classList.toggle('on',modes[i]===m);
+  });
+  document.getElementById('pf').style.display=m==='person'?'block':'none';
+}
+
+function setPipe(step, state='act'){
+  const idx=STEPS.indexOf(step);
+  STEPS.forEach((s,i)=>{
+    const el=document.getElementById('ps-'+s);
+    if(i<idx) el.className='ps done';
+    else if(i===idx) el.className='ps '+state;
+    else el.className='ps';
+  });
+}
+function resetPipe(){ STEPS.forEach(s=>document.getElementById('ps-'+s).className='ps'); }
+
+const _log=document.getElementById('live-log');
+function clog(msg,type='dim'){
+  const ts=new Date().toLocaleTimeString('en-GB',{hour12:false});
+  _log.innerHTML+=`<div class="ll ${type}">[${ts}] ${msg}</div>`;
+  _log.scrollTop=_log.scrollHeight;
+}
+function toggleLog(){
+  _log.classList.toggle('open');
+  document.getElementById('btn-log').textContent=_log.classList.contains('open')?'Hide logs':'Logs';
+}
+
+function toast(msg,dur=2600){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('on');
+  setTimeout(()=>t.classList.remove('on'),dur);
+}
+function showErr(title,msg){
+  document.getElementById('eb-title').textContent=title;
+  document.getElementById('eb-msg').textContent=msg;
+  document.getElementById('ebanner').classList.add('show');
+}
+function hideErr(){ document.getElementById('ebanner').classList.remove('show'); }
+
+function showSkeleton(n=6){
+  document.getElementById('content').innerHTML=
+    `<div class="sk-grid">${Array(n).fill('<div class="sk-c"></div>').join('')}</div>`;
+}
+
+function setBtn(loading){
+  const b=document.getElementById('go-btn');
+  b.disabled=loading;
+  b.textContent=loading?'⬡ Scanning…':'⬡ Scan prospects';
+}
+
+function getFilters(){
+  return{
+    industry:document.getElementById('f-ind').value.trim(),
+    geo:document.getElementById('f-geo').value.trim(),
+    size:document.getElementById('f-size').value,
+    stage:document.getElementById('f-stage').value,
+    role:document.getElementById('f-role').value.trim(),
+    minScore:parseInt(document.getElementById('f-score').value)||5,
+  };
+}
+
+function extractDomain(url){
+  try{
+    return new URL(url).hostname.replace(/^www\./,'').toLowerCase();
+  }catch(e){ return (url||'').toLowerCase().replace(/^https?:\/\/(www\.)?/,'').split('/')[0]; }
+}
+
+function escH(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function initials(n){
+  return (n||'').split(/[\s.]+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'??';
+}
+
+function scClass(s){ return s>=8?'sc-hi':s>=5?'sc-md':'sc-lo'; }
+function scColor(s){ return s>=8?'var(--em)':s>=5?'var(--am)':'var(--re)'; }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+/* ════════════════════════════════════════════════════
+   RENDER PROSPECT CARDS
+════════════════════════════════════════════════════ */
+function renderCards(prospects, append=false){
+  const c=document.getElementById('content');
+  let grid=document.getElementById('r-grid');
+  if(!append||!grid){
+    c.innerHTML='';
+    grid=document.createElement('div');
+    grid.className='r-grid';grid.id='r-grid';
+    c.appendChild(grid);
+  }
+
+  prospects.forEach(p=>{
+    if(!p||!p.name) return;
+    const card=document.createElement('div');
+    card.className='pc';
+    const sc=p.fit_score||0;
+    const allIdx=S.allResults.indexOf(p);
+
+    const traits=[
+      p.hq?`<div class="pt"><div class="pt-k">HQ</div><div class="pt-v">${escH(p.hq)}</div></div>`:'',
+      p.size?`<div class="pt"><div class="pt-k">Size</div><div class="pt-v">${escH(p.size)}</div></div>`:'',
+      p.stage?`<div class="pt"><div class="pt-k">Stage</div><div class="pt-v">${escH(p.stage)}</div></div>`:'',
+      p.business_model?`<div class="pt"><div class="pt-k">Model</div><div class="pt-v">${escH(p.business_model)}</div></div>`:'',
+      p.founding_year?`<div class="pt"><div class="pt-k">Founded</div><div class="pt-v">${escH(p.founding_year)}</div></div>`:'',
+      p.customer_segment?`<div class="pt"><div class="pt-k">Segment</div><div class="pt-v">${escH(p.customer_segment)}</div></div>`:'',
+    ].filter(Boolean).slice(0,4).join('');
+
+    const tags=[p.industry,...(p.key_products||[]).slice(0,2),p.target_role]
+      .filter(Boolean).map(t=>`<span class="pc-tag">${escH(t)}</span>`).join('');
+
+    const signals=(p.signals||[]).slice(0,3).map(s=>`<div class="pc-sig">${escH(s)}</div>`).join('');
+
+    const domain=extractDomain(p.website||'');
+
+    card.innerHTML=`
+      <div class="pc-accent" style="background:${scColor(sc)}"></div>
+      <div class="pc-body">
+        <div class="pc-head">
+          <div class="pc-av">${initials(p.name)}</div>
+          <div style="flex:1;min-width:0">
+            <div class="pc-name">${escH(p.name)}</div>
+            <div class="pc-sub">${escH(p.industry||'')}${p.hq?' · '+escH(p.hq.split(',')[0]):''}
+            </div>
+          </div>
+          <div class="pc-sc ${scClass(sc)}">${sc}/10</div>
+        </div>
+        ${domain?`<div class="exa-src"><div class="exa-src-dot"></div>exa.ai · ${escH(domain)}</div>`:''}
+        ${tags?`<div class="pc-tags">${tags}</div>`:''}
+        ${traits?`<div class="pc-traits">${traits}</div>`:''}
+        <div class="pc-why">${escH(p.why_fit||'')}</div>
+        ${signals?`<div style="margin-bottom:7px">${signals}</div>`:''}
+        ${p.outreach_hook?`<div class="pc-hook">${escH(p.outreach_hook)}</div>`:''}
+      </div>
+      <div class="pc-actions">
+        ${p.website?`<button class="pa-btn" onclick="openU('${escH(p.website)}')">Website</button>`:''}
+        ${p.linkedin?`<button class="pa-btn" onclick="openU('${escH(p.linkedin)}')">LinkedIn</button>`:''}
+        <button class="pa-btn" id="sv-${allIdx}" onclick="toggleSave(this,'${escH(p.name)}')">Save</button>
+        <button class="pa-btn" id="cp-${allIdx}" onclick="copyHook(this,'${escH(p.outreach_hook||p.why_fit||'')}')">Copy hook</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function openU(url){ window.open(url,'_blank','noopener'); }
+function toggleSave(btn,name){
+  btn.classList.toggle('saved');
+  btn.textContent=btn.classList.contains('saved')?'Saved ✓':'Save';
+  toast(btn.classList.contains('saved')?`Saved: ${name}`:`Removed: ${name}`);
+}
+function copyHook(btn,text){
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.classList.add('copied');btn.textContent='Copied!';
+    setTimeout(()=>{btn.classList.remove('copied');btn.textContent='Copy hook';},1800);
+  }).catch(()=>toast('Copy failed — try manually selecting text'));
+}
+
+/* ════════════════════════════════════════════════════
+   ICP DISPLAY
+════════════════════════════════════════════════════ */
+function showICP(p){
+  const panel=document.getElementById('icp-panel');
+  document.getElementById('icp-content').innerHTML=[
+    p.company_name?`<strong>${escH(p.company_name)}</strong>`:'',
+    p.industry?` · ${escH(p.industry)}`:'',
+    p.hq?`<br>${escH(p.hq)}`:'',
+    p.size_band?` · ${escH(p.size_band)}`:'',
+    p.business_model?`<br>${escH(p.business_model)}`:'',
+    p.customer_segment?` · ${escH(p.customer_segment)}`:'',
+    p.tagline?`<br><em style="color:var(--t3)">${escH(p.tagline)}</em>`:'',
+  ].filter(Boolean).join('');
+
+  const tags=[...(p.pain_points_solved||[]).slice(0,3),...(p.tech_signals||[]).slice(0,2)]
+    .map(t=>`<span class="icp-tag">${escH(t)}</span>`).join('');
+  document.getElementById('icp-tags').innerHTML=tags;
+  panel.classList.add('show');
+}
+
+/* ════════════════════════════════════════════════════
+   BATCH BAR + STATS
+════════════════════════════════════════════════════ */
+function showBatchBar(exhausted){
+  const bar=document.getElementById('bbar');
+  const nb=document.getElementById('next-btn');
+  bar.classList.add('show');
+  if(S.totalFound>=1000){
+    nb.style.display='none';
+    document.getElementById('binfo').innerHTML='<strong>1,000 cap reached.</strong> Export your results.';
+  } else if(exhausted){
+    nb.style.display='none';
+    document.getElementById('binfo').innerHTML=`<strong>All results found</strong> for this query set (${S.totalFound} total). Try different filters or a new seed.`;
+  } else {
+    nb.style.display='';nb.disabled=false;nb.textContent='Next 25 →';
+    document.getElementById('binfo').innerHTML=
+      `Showing <strong>${S.totalFound}</strong> prospects · ${1000-S.totalFound} cap remaining`;
+  }
+}
+
+function showExhausted(){
+  showBatchBar(true);
+  clog('No new results found. All prospects discovered or query exhausted.','warn');
+  toast('All results found. Try different filters.');
+}
+
+function updateStats(){
+  document.getElementById('stats-panel').style.display='block';
+  document.getElementById('s-found').textContent=S.totalFound;
+  document.getElementById('s-batch').textContent=S.batchNum;
+  document.getElementById('s-crawled').textContent=S.crawledCount;
+  document.getElementById('s-scored').textContent=S.scoredCount;
+  document.getElementById('cap-n').textContent=S.totalFound+' used';
+  document.getElementById('cap-f').style.width=Math.min(100,(S.totalFound/1000)*100)+'%';
+}
+
+/* ════════════════════════════════════════════════════
+   ERROR HANDLING
+════════════════════════════════════════════════════ */
+function handleError(e){
+  S.isRunning=false; setBtn(false);
+  const m=e.message||'Unknown error';
+  clog(`ERROR: ${m}`,'err');
+
+  const MSGS={
+    'EXA_KEY_MISSING':'Exa.ai key not configured. Click ⚙ Keys and add your Exa.ai API key.',
+    'ANTH_KEY_MISSING':'Anthropic key not configured. Click ⚙ Keys and add your Anthropic API key.',
+    'ANTH_AUTH':'Invalid Anthropic API key. Check it at console.anthropic.com → API Keys.',
+    'ANTH_OVERLOADED':'Anthropic is overloaded. Auto-retried 3x. Try again in 30 seconds.',
+    'ANTH_RATE_LIMIT':'Rate limit hit. Wait 60s and try again.',
+    'No candidates':'No results found by Exa.ai. Try a specific domain (e.g. stripe.com) or different filters.',
+    'All candidates were filtered':'All results scored below your min-score filter. Lower the minimum score.',
+    'No JSON in response':'AI returned unparseable response. Retry — this is usually transient.',
+    'EXA_BAD_URL':'Exa.ai rejected the URL. Make sure to enter a valid domain like stripe.com',
+    'fetch':'Network error — check your internet connection and proxy URL if configured.',
+  };
+
+  const key=Object.keys(MSGS).find(k=>m.includes(k));
+  const friendly=key?MSGS[key]:m;
+
+  document.getElementById('content').innerHTML=`
+    <div class="empty">
+      <div style="font-size:32px;color:var(--re)">⚠</div>
+      <div class="e-h" style="color:var(--re)">Scan failed</div>
+      <div class="e-p">${escH(friendly)}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px">
+        <button class="btn btn-o btn-sm" onclick="retryLast()" style="width:auto;padding:8px 18px">Retry</button>
+        <button class="btn btn-o btn-sm" onclick="relaxFilters()" style="width:auto;padding:8px 18px">Relax filters</button>
+        <button class="btn btn-o btn-sm" onclick="openSettings()" style="width:auto;padding:8px 18px">⚙ Check keys</button>
+      </div>
+    </div>`;
+}
+
+function retryLast(){ hideErr(); startSearch(); }
+function relaxFilters(){
+  document.getElementById('f-size').value='';
+  document.getElementById('f-stage').value='';
+  document.getElementById('f-score').value=3;
+  document.getElementById('sv').textContent='3';
+  hideErr(); startSearch();
+}
+
+/* ════════════════════════════════════════════════════
+   EXPORT
+════════════════════════════════════════════════════ */
+function openExport(){
+  if(!S.allResults.length){ toast('No results to export yet'); return; }
+  const h='rank,name,website,linkedin,hq,size,industry,stage,founding_year,business_model,customer_segment,fit_score,why_fit,signals,target_role,outreach_hook';
+  const rows=S.allResults.map((p,i)=>[
+    i+1,qc(p.name),qc(p.website),qc(p.linkedin),qc(p.hq),qc(p.size),
+    qc(p.industry),qc(p.stage),qc(p.founding_year),qc(p.business_model),
+    qc(p.customer_segment),p.fit_score||'',qc(p.why_fit),
+    qc((p.signals||[]).join('; ')),qc(p.target_role),qc(p.outreach_hook)
+  ].join(','));
+  document.getElementById('csv-preview').textContent=[h,...rows].join('\n');
+  document.getElementById('export-modal').classList.add('open');
+}
+function closeExport(){ document.getElementById('export-modal').classList.remove('open'); }
+function downloadCSV(){
+  const text=document.getElementById('csv-preview').textContent;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'}));
+  a.download=`prospects-${(S.rawQuery||'export').slice(0,30).replace(/\W+/g,'-')}-${Date.now()}.csv`;
+  a.click(); closeExport(); toast('CSV downloaded!');
+}
+function qc(v){ return '"'+String(v||'').replace(/"/g,'""')+'"'; }
+
+/* ════════════════════════════════════════════════════
+   RESET
+════════════════════════════════════════════════════ */
+function resetSession(){
+  Object.assign(S,{
+    rawQuery:'',filters:{},seedUrl:'',seedProfile:null,icp:null,
+    cursor:0,totalFound:0,batchNum:0,
+    alreadyDomains:new Set(),alreadyExaIds:new Set(),
+    queriesUsed:[],allResults:[],crawledCount:0,scoredCount:0,
+    isRunning:false,lastError:null,claudeHistory:[]
+  });
+  setMode('company');
+  ['qi','f-ind','f-geo','f-role'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-size').value='';
+  document.getElementById('f-stage').value='';
+  document.getElementById('f-score').value=6;
+  document.getElementById('sv').textContent='6';
+  setBtn(false);
+  document.getElementById('content').innerHTML=`
+    <div class="empty" id="empty-s">
+      <div class="e-ring"><div class="e-dot"></div></div>
+      <div class="e-h">Live prospect intelligence</div>
+      <div class="e-p">Enter a seed domain (e.g. <strong>stripe.com</strong>) or natural-language query. ProspectRadar uses <strong>Exa.ai</strong> to crawl the live web and find lookalikes, then <strong>Claude</strong> scores them against a real-time extracted ICP.</div>
+      <button class="btn btn-o btn-sm" onclick="openSettings()" style="width:auto;padding:8px 20px">⚙ Configure API keys first</button>
+    </div>`;
+  document.getElementById('bbar').classList.remove('show');
+  document.getElementById('stats-panel').style.display='none';
+  document.getElementById('icp-panel').classList.remove('show');
+  document.getElementById('btn-export').style.display='none';
+  document.getElementById('btn-log').style.display='none';
+  document.getElementById('tb-title').textContent='ProspectRadar — Exa.ai + Claude intelligence';
+  document.getElementById('tb-meta').textContent='';
+  document.getElementById('live-log').innerHTML='';
+  document.getElementById('live-log').classList.remove('open');
+  resetPipe(); hideErr();
+  toast('Session reset');
+}
+
+/* ════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════ */
+loadKeys();
+
+// Ctrl/Cmd+Enter to search
+document.getElementById('qi').addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter') startSearch();
+});
+
+// Listen for config from parent (embed mode)
+window.addEventListener('message',e=>{
+  if(!e.data) return;
+  if(e.data.type==='PR_CONFIG'){
+    if(e.data.exaKey) S.keys.exa=e.data.exaKey;
+    if(e.data.anthropicKey) S.keys.anthropic=e.data.anthropicKey;
+    if(e.data.proxy) S.keys.proxy=e.data.proxy;
+    updateKeyStatus();
+    window.parent.postMessage({type:'PR_READY'},'*');
+  }
+});
+</script>
+</body>
+</html>
