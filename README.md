@@ -1,0 +1,2 @@
+# CluadeProspector
+Claude Prospecting Skills
